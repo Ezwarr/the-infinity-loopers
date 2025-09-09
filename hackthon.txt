@@ -1,0 +1,58 @@
+#@title StudyMate: AI-Powered PDF Q&A { display-mode: "form" }
+
+# Install necessary packages
+!pip install --quiet pymupdf openai
+
+import fitz  # PyMuPDF
+import openai
+from google.colab import files
+
+# === Set your OpenAI API key here ===
+OPENAI_API_KEY = "YOUR_OPENAI_API_KEY"  #@param {type:"string"}
+openai.api_key = OPENAI_API_KEY
+
+def extract_text_from_pdf(pdf_path):
+    """Extract text from uploaded PDF."""
+    doc = fitz.open(pdf_path)
+    full_text = ""
+    for page in doc:
+        full_text += page.get_text()
+    return full_text
+
+def ask_question(pdf_text, question):
+    """Ask question to OpenAI GPT model based on PDF text."""
+    # Limit length for prompt (about 3000 chars)
+    MAX_CHARS = 3000
+    if len(pdf_text) > MAX_CHARS:
+        pdf_text = pdf_text[:MAX_CHARS]
+    
+    messages = [
+        {"role": "system", "content": "You are StudyMate, an AI assistant helping students understand their study materials."},
+        {"role": "user", "content": f"Here is the text extracted from a PDF document:\n\n\"\"\"\n{pdf_text}\n\"\"\"\n\nBased on this text, answer the following question:\n\nQ: {question}\nA:"}
+    ]
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=messages,
+        max_tokens=300,
+        temperature=0.2,
+    )
+    answer = response.choices[0].message['content'].strip()
+    return answer
+
+# --- Upload PDF ---
+print("Upload your study PDF file")
+uploaded = files.upload()
+
+if uploaded:
+    pdf_filename = list(uploaded.keys())[0]
+    print(f"\nExtracting text from '{pdf_filename}'...")
+    pdf_text = extract_text_from_pdf(pdf_filename)
+
+    question = input("\nWhat do you want to ask about the PDF? ")
+
+    print("\nAsking StudyMate...\n")
+    answer = ask_question(pdf_text, question)
+    print("StudyMate's answer:")
+    print(answer)
+else:
+    print("No file uploaded.")
